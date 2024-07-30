@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SyncTune - Музыкальный плеер</title>
+    <style>
+        #messages { height: 300px; border: 1px solid #000; overflow-y: scroll; }
+    </style>
+</head>
+<body>
+<h1>SyncTune - Музыкальный плеер</h1>
+<form id="connectForm">
+    <label>Имя пользователя:</label>
+    <input type="text" id="username" required>
+    <button type="submit">Подключиться</button>
+</form>
+<div id="messages"></div>
+<audio id="audioPlayer" controls>
+    <source id="audioSource" src="" type="audio/mpeg">
+    Ваш браузер не поддерживает прослушивание аудио
+</audio>
+<input type="text" id="messageInput" placeholder="Введите URL музыки">
+<button onclick="sendPlayCommand()">Воспроизвести</button>
+
+<script>
+    let ws;
+    document.getElementById('connectForm').onsubmit = function(event) {
+        event.preventDefault();
+        connect();
+    };
+
+    function connect() {
+        const username = document.getElementById('username').value;
+        ws = new WebSocket(`ws://localhost:8000/ws/${username}`);
+        ws.onopen = () => {
+            console.log("Connected to WebSocket server");
+        };
+        ws.onmessage = (event) => {
+            const messagesDiv = document.getElementById("messages");
+            const message = document.createElement("div");
+            message.textContent = event.data;
+            messagesDiv.appendChild(message);
+            const data = JSON.parse(event.data);
+            if (data.type === "play") {
+                playMusic(data.url);
+            }
+        };
+    }
+
+    function sendPlayCommand() {
+        const input = document.getElementById("messageInput");
+        const message = { type: "play", url: input.value };
+        ws.send(JSON.stringify(message));
+        input.value = '';
+    }
+
+    function playMusic(url) {
+        const audioPlayer = document.getElementById("audioPlayer");
+        const audioSource = document.getElementById("audioSource");
+        audioSource.src = url;
+        audioPlayer.load();
+        audioPlayer.play();
+    }
+</script>
+</body>
+</html>
