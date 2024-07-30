@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from typing import List
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
@@ -9,6 +10,8 @@ app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 templates = Jinja2Templates(directory="templates")
+FORMAT = "%(asctime)s : %(name)s : %(levelname)s : %(message)s"
+logging.basicConfig(level=logging.INFO, format=FORMAT)
 
 
 @dataclass
@@ -42,6 +45,7 @@ class ConnectionManager:
         """Принятие нового соединения"""
         await client.websocket.accept()
         self.connected_clients.append(client)
+        logging.info("Клиент %s успешно подключен", client.username)
 
     async def disconnect(self, client: Client):
         """Отключение клиента"""
@@ -50,6 +54,7 @@ class ConnectionManager:
             for existing_client in self.connected_clients
             if existing_client.websocket != client.websocket
         ]
+        logging.info("Клиент %s отключился", client.username)
 
     async def send_welcome_message(self, client: Client):
         """Отправка приветственного сообщения пользователю"""
@@ -74,11 +79,13 @@ class ConnectionManager:
     def append_new_message(self, message: str):
         """Добавление нового сообщения в очередь"""
         self.message_queue.append(message)
+        logging.info("Новое сообщение добавлено в очередь: %s", message)
 
     async def broadcast(self, message: str):
         """Рассылка сообщения всем клиентам"""
         for client in self.connected_clients:
             await client.websocket.send_text(message)
+        logging.info("Широковещательное сообщение: %s", message)
 
     async def initialize_client_session(self, client: Client):
         """Инициализация сессии клиента"""
@@ -104,6 +111,10 @@ async def websocket_endpoint(websocket: WebSocket, username: str):
     except WebSocketDisconnect:
         await manager.disconnect(client)
         await manager.broadcast(f"Пользователь {username} покинул плеер!")
+    except Exception as e:
+        logging.error("Произошла ошибка: %s", e)
+        await manager.disconnect(client)
+        await manager.broadcast(f"Пользователь {username} покинул плеер из-за ошибки!")
 
 
 @app.get("/", response_class=HTMLResponse)
