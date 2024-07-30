@@ -7,42 +7,63 @@ app = FastAPI()
 
 templates = Jinja2Templates(directory="templates")
 
-# Список подключенных клиентов
-connected_clients = []
 
-# Очередь сообщений
-message_queue = []
+class ConnectionManager:
+	"""
+	Управление подключениями и обменом сообщениями между клиентами.
+
+	Атрибуты:
+	connected_clients (list[WebSocket]): список подключенных клиентов (объектов WebSocket).
+	message_queue (list[str]): очередь сообщений для отправки клиентам.
+	"""
+
+	def __init__(self):
+		self.connected_clients: list[WebSocket, str] = []
+		self.message_queue: list[str] = []
+
+	async def connect(self, websocket: WebSocket, username: str):
+		await websocket.accept()
+		self.connected_clients.append({'websocket': websocket, 'username': username})
+
+	def disconnect(self, websocket: WebSocket, username: str):
+		self.connected_clients.remove({"websocket": websocket, "username": username})
+
+	async def send_personal_message(self, websocket: WebSocket, username: str):
+		welcome_message = f"Привет, {username}! Добро пожаловать в чат!"
+		await websocket.send_text(welcome_message)
+
+	async def send_messages_from_queue(self, websocket: WebSocket):
+		for message in self.message_queue:
+			await websocket.send_text(message)
+
+	def append_new_message(self, message: str):
+		self.message_queue.append(message)
+
+	async def broadcast(self, message: str):
+		for client in self.connected_clients:
+			await client["websocket"].send_text(message)
 
 
-# WebSocket для веб-интерфейса чата
+manager = ConnectionManager()
+
+
 @app.websocket("/ws/{username}")
 async def websocket_endpoint(websocket: WebSocket, username: str):
-	await websocket.accept()
-	# Добавляем клиента в список подключенных
-	connected_clients.append({"websocket": websocket, "username": username})
-	# Приветственное сообщение для нового клиента
-	welcome_message = f"Привет, {username}! Добро пожаловать в чат Otus!"
-	await websocket.send_text(welcome_message)
-
-	# Отправляем сообщения из очереди (если они есть)
-	for message in message_queue:
-		await websocket.send_text(message)
+	await manager.connect(websocket, username)
+	await manager.send_personal_message(websocket, username)
+	await manager.send_messages_from_queue(websocket)
 
 	try:
 		while True:
 			data = await websocket.receive_text()
 			message = f"{username}: {data}"
-			# Добавляем сообщение в очередь
-			message_queue.append(message)
-			# Отправляем сообщение всем подключенным клиентам
-			for client in connected_clients:
-				await client["websocket"].send_text(message)
+			manager.append_new_message(message)
+			await manager.broadcast(message)
 	except WebSocketDisconnect:
-		# Удаляем клиента из списка при отключении
-		connected_clients.remove({"websocket": websocket, "username": username})
+		manager.disconnect(websocket, username)
+		await manager.broadcast(f"Пользователь {username} покинул чат!")
 
 
-# Веб-страница для входа в чат
 @app.get("/", response_class=HTMLResponse)
 async def chat_interface(request: Request):
 	return templates.TemplateResponse("chat.html", {"request": request})
