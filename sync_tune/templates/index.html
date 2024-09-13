@@ -1,27 +1,25 @@
 <!DOCTYPE html>
 <html>
-
-<head>
+  <head>
     <title>SyncTune - Музыкальный плеер</title>
-    <link rel="stylesheet" type="text/css" href="/static/styles.css">
-</head>
+    <link rel="stylesheet" type="text/css" href="/static/styles.css" />
+  </head>
 
-<body>
+  <body>
     <h1>SyncTune - Музыкальный плеер</h1>
     <form id="connectForm">
-        <label>Имя пользователя:</label>
-        <input type="text" id="username" required>
-        <button type="submit">Подключиться</button>
+      <label>Имя пользователя:</label>
+      <input type="text" id="username" required />
+      <button type="submit">Подключиться</button>
     </form>
     <div id="messages"></div>
     <audio id="audioPlayer" controls>
-        <source id="audioSource" src="" type="audio/mpeg">
-        Ваш браузер не поддерживает прослушивание аудио
+      <source id="audioSource" src="" type="audio/mpeg" />
+      Ваш браузер не поддерживает прослушивание аудио
     </audio>
-    <input type="text" id="messageInput" placeholder="Введите URL музыки">
+    <input type="text" id="messageInput" placeholder="Введите URL музыки" />
     <button onclick="sendPlayCommand()">Воспроизвести</button>
 
     <script src="/static/script.js"></script>
-</body>
-
+  </body>
 </html>
